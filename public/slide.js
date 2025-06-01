@@ -1,14 +1,17 @@
 // 初期化を実行
-window.addEventListener('load', init);
+window.addEventListener("load", init);
 
 const baseWidth = 16;
 const baseHeight = 9;
 
+const fontFamily = ' "游ゴシック体", "Hiragino Kaku Gothic ProN", sans-serif';
+
 const slides = [
   {
     title: "簡単なプレゼンテーション",
-    description: "CanvasとJavaScriptを使ったスライド\nテキストと画像の組み合わせ",
-    backgroundColor: "rgba(106, 90, 205, 0.2)",
+    description:
+      "CanvasとJavaScriptを使ったスライド\nテキストと画像の組み合わせ",
+    backgroundColor: "rgba(106, 90, 205, 0.9)",
     content: [
       {
         type: "text",
@@ -17,9 +20,9 @@ const slides = [
         y: 200,
         fontSize: 32,
         color: "#ffffff",
-        fontFamily: "'Segoe UI', sans-serif",
+        fontFamily,
         fontWeight: "bold",
-        textAlign: "center"
+        textAlign: "center",
       },
       {
         type: "image",
@@ -29,9 +32,9 @@ const slides = [
         width: 400,
         height: 250,
         opacity: 1,
-        anchor: "center"
-      }
-    ]
+        anchor: "center",
+      },
+    ],
   },
   {
     title: "2枚目のスライド",
@@ -45,7 +48,7 @@ const slides = [
         y: 200,
         fontSize: 28,
         color: "#FFD700",
-        textAlign: "left"
+        textAlign: "left",
       },
       {
         type: "text",
@@ -54,10 +57,10 @@ const slides = [
         y: 250,
         fontSize: 26,
         color: "#00BFFF",
-        textAlign: "right"
-      }
-    ]
-  }
+        textAlign: "right",
+      },
+    ],
+  },
 ];
 
 class ImageLoader {
@@ -84,9 +87,9 @@ class ImageLoader {
 
   loadAllImages(slides) {
     const promises = [];
-    slides.forEach(slide => {
+    slides.forEach((slide) => {
       if (slide.content) {
-        slide.content.forEach(item => {
+        slide.content.forEach((item) => {
           if (item.type === "image") {
             promises.push(this.loadImage(item.src));
           }
@@ -132,10 +135,11 @@ function drawContentItem(ctx, item, width, height) {
       const fontSize = scaleValue(
         item.fontSize || 24,
         itemAreaWidth,
-        Math.min(width, height)
+        Math.min(width, height),
       );
 
-      ctx.font = `${item.fontWeight || "normal"} ${fontSize}px ${item.fontFamily || "sans-serif"}`;
+      ctx.font = `${item.fontWeight || "normal"} ${fontSize}px ${item.fontFamily}`;
+      console.log("----- ctx.font", ctx.font);
       ctx.fillStyle = item.color || "#ffffff";
       ctx.textAlign = item.textAlign || "left";
       ctx.textBaseline = item.textBaseline || "top";
@@ -188,7 +192,11 @@ function drawContentItem(ctx, item, width, height) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
         ctx.font = "16px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("Image Loading", scaledX + targetWidth / 2, scaledY + targetHeight / 2);
+        ctx.fillText(
+          "Image Loading",
+          scaledX + targetWidth / 2,
+          scaledY + targetHeight / 2,
+        );
       }
       break;
   }
@@ -197,9 +205,10 @@ function drawContentItem(ctx, item, width, height) {
 }
 
 function drawSlide(slide, width, height, opacity) {
-  ctx.globalAlpha = opacity;
-  ctx.fillStyle = slide.backgroundColor || "rgba(30, 30, 40, 0.2)";
   ctx.clearRect(0, 0, width, height);
+  ctx.globalAlpha = opacity;
+  console.log("----- slide.backgroundColor", slide.backgroundColor);
+  ctx.fillStyle = slide.backgroundColor || "rgba(30, 30, 40, 0.2)";
   const titleFontSize = Math.max(1, Math.min(60, width * 0.05));
   ctx.font = `bold ${titleFontSize}px 'Segoe UI', sans-serif`;
   ctx.fillStyle = "white";
@@ -210,14 +219,14 @@ function drawSlide(slide, width, height, opacity) {
   const descFontSize = Math.max(1, Math.min(32, width * 0.03));
   ctx.font = `normal ${descFontSize}px 'Segoe UI', sans-serif`;
 
-  const descriptionLines = slide.description.split('\n');
+  const descriptionLines = slide.description.split("\n");
   const lineHeight = descFontSize * 1.6;
   descriptionLines.forEach((line, index) => {
-    ctx.fillText(line, width / 2, titleFontSize * 3 + (lineHeight * index) * 1.6);
+    ctx.fillText(line, width / 2, titleFontSize * 3 + lineHeight * index * 1.6);
   });
 
   if (slide.content) {
-    slide.content.forEach(item => {
+    slide.content.forEach((item) => {
       drawContentItem(ctx, item, width, height);
     });
   }
@@ -236,7 +245,8 @@ function draw(canvas) {
   if (transitionDirection === 0) {
     drawSlide(slides[currentSlide], width, height, 1);
   } else {
-    const nextSlideIndex = (currentSlide + transitionDirection + slides.length) % slides.length;
+    const nextSlideIndex =
+      (currentSlide + transitionDirection + slides.length) % slides.length;
 
     if (transitionDirection === 1) {
       drawSlide(slides[currentSlide], width, height, 1 - transitionProgress);
@@ -248,25 +258,20 @@ function draw(canvas) {
   }
 }
 
-function resizeCanvas(canvas) {
+function handleResizeCanvas(canvas) {
   if (!canvas) return;
 
   const baseAspectRatio = baseWidth / baseHeight;
 
   const documentWidth = document.documentElement.clientWidth;
   const documentHeight = document.documentElement.clientHeight;
-  console.log('----- documentWidth', documentWidth)
-  console.log('----- documentHeight', documentHeight)
 
   if (documentWidth / baseWidth > documentHeight / baseHeight) {
-    // 表示領域がベースより横長：高さを基準に幅を調整
-    console.log('----- documentHeight / 9 * 16', documentHeight / 9 * 16)
     canvas.height = documentHeight;
-    canvas.width = documentHeight / 9 * 16;
+    canvas.width = (documentHeight / 9) * 16;
   } else {
-    // 表示領域がベースより縦長：幅を基準に高さを調整
     canvas.width = documentWidth;
-    canvas.height = documentWidth / 16 * 9;
+    canvas.height = (documentWidth / 16) * 9;
   }
 
   draw(canvas);
@@ -304,7 +309,10 @@ function nextSlide(canvas) {
 
   const currentSlideObj = slides[currentSlide];
   // 現在のスライドにコンテンツがあり、まだ表示していないものがある場合
-  if (currentSlideObj.content && currentContentIndex < currentSlideObj.content.length) {
+  if (
+    currentSlideObj.content &&
+    currentContentIndex < currentSlideObj.content.length
+  ) {
     // 次のコンテンツを表示
     const item = currentSlideObj.content[currentContentIndex];
     item.visible = true;
@@ -362,10 +370,9 @@ function goToSlide(index) {
   animate();
 }
 
-
 function resetSlideContent(slide) {
   if (slide.content) {
-    slide.content.forEach(item => {
+    slide.content.forEach((item) => {
       item.visible = false;
       item.opacity = 0;
     });
@@ -423,9 +430,31 @@ function handleKeyDown(e, canvas) {
 }
 
 async function init() {
+  try {
+    await imageLoader.loadAllImages(slides);
+  } catch (error) {
+    console.error("画像の読み込みに失敗しました:", error);
+  }
+
+  // 透過レイヤー効果を強化するためスライド背景の透過度を調整
+  slides.forEach((slide) => {
+    if (!slide.backgroundColor.includes("rgba")) {
+      slide.backgroundColor = "rgba(30, 30, 50, 0.85)";
+    } else {
+      // 既存のrgba値を透過度増加（0.2 → 0.85）
+      slide.backgroundColor = slide.backgroundColor.replace(
+        /rgba\(([^)]+)\)/,
+        (match, p1) => {
+          const values = p1.split(",").map((v) => parseFloat(v.trim()));
+          values[3] = Math.min(0.85, values[3] + 0.2); // 透過度増加
+          return `rgba(${values.join(",")})`;
+        },
+      );
+    }
+  });
 
   // キャンバスとコンテキストの取得
-  const canvas = document.getElementById('slideCanvas');
+  const canvas = document.getElementById("slideCanvas");
 
   try {
     await imageLoader.loadAllImages(slides);
@@ -434,9 +463,9 @@ async function init() {
   }
 
   // 各スライドのコンテンツを初期化
-  slides.forEach(slide => {
+  slides.forEach((slide) => {
     if (slide.content) {
-      slide.content.forEach(item => {
+      slide.content.forEach((item) => {
         item.visible = false;
         item.opacity = 0;
       });
@@ -447,16 +476,15 @@ async function init() {
   document.addEventListener("keydown", (e) => handleKeyDown(e, canvas));
 
   // 初期設定
-  resizeCanvas(canvas);
+  handleResizeCanvas(canvas);
   // createIndicators();
   updateSlideCounter();
 
   // リサイズイベント
   window.addEventListener("resize", () => {
-    console.log('----- resize')
+    console.log("----- resize");
 
-
-    resizeCanvas(canvas)
+    handleResizeCanvas(canvas);
   });
 }
 
