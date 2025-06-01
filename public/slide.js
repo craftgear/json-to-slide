@@ -1,13 +1,8 @@
-
 // 初期化を実行
 window.addEventListener('load', init);
 
-// キャンバスとコンテキストの取得
-const canvas = document.getElementById('slideCanvas');
-// const ctx = canvas.getContext('2d');
-
-const baseWidth = 1280;
-const baseHeight = 700;
+const baseWidth = 16;
+const baseHeight = 9;
 
 const slides = [
   {
@@ -104,6 +99,7 @@ class ImageLoader {
 
 const imageLoader = new ImageLoader();
 let currentSlide = 0;
+let currentContentIndex = 0; // 現在のスライドで次に表示するコンテンツのインデックス
 let transitionProgress = 0;
 let transitionDirection = 0;
 let ctx;
@@ -117,21 +113,25 @@ function scaleValue(value, baseValue, canvasSize) {
   return (value / baseValue) * canvasSize;
 }
 
-function drawContentItem(item, width, height, opacity) {
-  const baseWidth = 1000;
-  const baseHeight = 500;
+function drawContentItem(ctx, item, width, height) {
+  if (!item.visible) return;
 
-  const scaledX = scaleValue(item.x, baseWidth, width);
-  const scaledY = scaleValue(item.y, baseHeight, height);
+  const itemAreaWidth = 1000;
+  const itemAreaHeight = 500;
+
+  const scaledX = scaleValue(item.x, itemAreaWidth, width);
+  const scaledY = scaleValue(item.y, itemAreaHeight, height);
 
   ctx.save();
-  // ctx.globalAlpha = (item.opacity || 1) * opacity;
+
+  // コンテンツの透明度を設定
+  ctx.globalAlpha = item.opacity || 1;
 
   switch (item.type) {
     case "text":
       const fontSize = scaleValue(
         item.fontSize || 24,
-        baseWidth,
+        itemAreaWidth,
         Math.min(width, height)
       );
 
@@ -144,10 +144,11 @@ function drawContentItem(item, width, height, opacity) {
       break;
 
     case "image":
+    case "svg":
       const img = imageLoader.images[item.src];
       if (img) {
-        let targetWidth = scaleValue(item.width, baseWidth, width);
-        let targetHeight = scaleValue(item.height, baseHeight, height);
+        let targetWidth = scaleValue(item.width, itemAreaWidth, width);
+        let targetHeight = scaleValue(item.height, itemAreaHeight, height);
 
         targetWidth = Math.min(targetWidth, width * 0.9);
         targetHeight = Math.min(targetHeight, height * 0.7);
@@ -179,8 +180,8 @@ function drawContentItem(item, width, height, opacity) {
       } else {
         ctx.fillStyle = "rgba(200, 200, 200, 0.5)";
         ctx.strokeStyle = "rgba(100, 100, 100, 0.7)";
-        const targetWidth = scaleValue(item.width, baseWidth, width);
-        const targetHeight = scaleValue(item.height, baseHeight, height);
+        const targetWidth = scaleValue(item.width, itemAreaWidth, width);
+        const targetHeight = scaleValue(item.height, itemAreaHeight, height);
         ctx.fillRect(scaledX, scaledY, targetWidth, targetHeight);
         ctx.strokeRect(scaledX, scaledY, targetWidth, targetHeight);
 
@@ -198,33 +199,31 @@ function drawContentItem(item, width, height, opacity) {
 function drawSlide(slide, width, height, opacity) {
   ctx.globalAlpha = opacity;
   ctx.fillStyle = slide.backgroundColor || "rgba(30, 30, 40, 0.2)";
-  ctx.fillRect(0, 0, width, height);
-
-  const titleFontSize = Math.max(28, Math.min(60, width * 0.05));
+  ctx.clearRect(0, 0, width, height);
+  const titleFontSize = Math.max(1, Math.min(60, width * 0.05));
   ctx.font = `bold ${titleFontSize}px 'Segoe UI', sans-serif`;
   ctx.fillStyle = "white";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillText(slide.title, width / 2, 40);
+  ctx.fillText(slide.title, width / 2, titleFontSize * 1.6);
 
-  const descFontSize = Math.max(16, Math.min(32, width * 0.03));
+  const descFontSize = Math.max(1, Math.min(32, width * 0.03));
   ctx.font = `normal ${descFontSize}px 'Segoe UI', sans-serif`;
 
   const descriptionLines = slide.description.split('\n');
   const lineHeight = descFontSize * 1.6;
   descriptionLines.forEach((line, index) => {
-    ctx.fillText(line, width / 2, 40 + titleFontSize + 20 + (lineHeight * index));
+    ctx.fillText(line, width / 2, titleFontSize * 3 + (lineHeight * index) * 1.6);
   });
 
   if (slide.content) {
     slide.content.forEach(item => {
-      drawContentItem(item, width, height, opacity);
+      drawContentItem(ctx, item, width, height);
     });
   }
 }
 
-function draw() {
-  const canvas = document.getElementById("presentationCanvas");
+function draw(canvas) {
   if (!canvas) return;
 
   ctx = canvas.getContext("2d");
@@ -237,58 +236,100 @@ function draw() {
   if (transitionDirection === 0) {
     drawSlide(slides[currentSlide], width, height, 1);
   } else {
-    const nextSlide = (currentSlide + transitionDirection + slides.length) % slides.length;
+    const nextSlideIndex = (currentSlide + transitionDirection + slides.length) % slides.length;
 
     if (transitionDirection === 1) {
       drawSlide(slides[currentSlide], width, height, 1 - transitionProgress);
-      drawSlide(slides[nextSlide], width, height, transitionProgress);
+      drawSlide(slides[nextSlideIndex], width, height, transitionProgress);
     } else {
-      drawSlide(slides[nextSlide], width, height, transitionProgress);
+      drawSlide(slides[nextSlideIndex], width, height, transitionProgress);
       drawSlide(slides[currentSlide], width, height, 1 - transitionProgress);
     }
   }
 }
 
-function resizeCanvas() {
-  const canvas = document.getElementById("presentationCanvas");
+function resizeCanvas(canvas) {
   if (!canvas) return;
 
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
-  draw();
+  const baseAspectRatio = baseWidth / baseHeight;
+
+  const documentWidth = document.documentElement.clientWidth;
+  const documentHeight = document.documentElement.clientHeight;
+  console.log('----- documentWidth', documentWidth)
+  console.log('----- documentHeight', documentHeight)
+
+  if (documentWidth / baseWidth > documentHeight / baseHeight) {
+    // 表示領域がベースより横長：高さを基準に幅を調整
+    console.log('----- documentHeight / 9 * 16', documentHeight / 9 * 16)
+    canvas.height = documentHeight;
+    canvas.width = documentHeight / 9 * 16;
+  } else {
+    // 表示領域がベースより縦長：幅を基準に高さを調整
+    canvas.width = documentWidth;
+    canvas.height = documentWidth / 16 * 9;
+  }
+
+  draw(canvas);
 }
 
 // アニメーションの更新
-function animate() {
+function animate(canvas) {
   if (!isTransitioning) return;
+
+  // コンテンツフェードインの進捗を更新
+  if (transitionDirection === 0) {
+    const currentSlideObj = slides[currentSlide];
+    if (currentSlideObj.content && currentContentIndex > 0) {
+      const currentItem = currentSlideObj.content[currentContentIndex - 1];
+      currentItem.opacity = transitionProgress;
+    }
+  }
 
   transitionProgress += 0.05;
 
   if (transitionProgress >= 1) {
     transitionProgress = 1;
     isTransitioning = false;
-
   }
 
-  draw();
-  requestAnimationFrame(animate);
+  draw(canvas);
+  if (isTransitioning) {
+    requestAnimationFrame(() => animate(canvas));
+  }
 }
 
 // 次のスライドへ移動
-function nextSlide() {
+function nextSlide(canvas) {
   if (isTransitioning) return;
 
-  isTransitioning = true;
-  transitionDirection = 1;
-  transitionProgress = 0;
+  const currentSlideObj = slides[currentSlide];
+  // 現在のスライドにコンテンツがあり、まだ表示していないものがある場合
+  if (currentSlideObj.content && currentContentIndex < currentSlideObj.content.length) {
+    // 次のコンテンツを表示
+    const item = currentSlideObj.content[currentContentIndex];
+    item.visible = true;
+    currentContentIndex++;
+    isTransitioning = true; // フェードインアニメーションのため
+    transitionProgress = 0;
+    animate(canvas);
+  } else {
+    // 次のスライドへ移動
+    isTransitioning = true;
+    transitionDirection = 1;
+    transitionProgress = 0;
 
-  currentSlide = (currentSlide + 1) % slides.length;
-  updateSlideCounter();
-  animate();
+    currentSlide = (currentSlide + 1) % slides.length;
+    // 新しいスライドのコンテンツ状態をリセット
+    resetSlideContent(slides[currentSlide]);
+    currentContentIndex = 0;
+    updateSlideCounter();
+    // createIndicators();
+    animate(canvas);
+  }
 }
 
 // 前のスライドへ移動
-function prevSlide() {
+function prevSlide(canvas) {
   if (isTransitioning) return;
 
   isTransitioning = true;
@@ -296,8 +337,12 @@ function prevSlide() {
   transitionProgress = 0;
 
   currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+  // 新しいスライドのコンテンツ状態をリセット
+  resetSlideContent(slides[currentSlide]);
+  currentContentIndex = 0;
   updateSlideCounter();
-  animate();
+  // createIndicators();
+  animate(canvas);
 }
 
 // 特定のスライドへ移動
@@ -309,10 +354,23 @@ function goToSlide(index) {
   transitionProgress = 0;
 
   currentSlide = index;
+  // 新しいスライドのコンテンツ状態をリセット
+  resetSlideContent(slides[currentSlide]);
+  currentContentIndex = 0;
   updateSlideCounter();
+  // createIndicators();
   animate();
 }
 
+
+function resetSlideContent(slide) {
+  if (slide.content) {
+    slide.content.forEach(item => {
+      item.visible = false;
+      item.opacity = 0;
+    });
+  }
+}
 
 function updateSlideCounter() {
   const counter = document.getElementById("slideCounter");
@@ -321,73 +379,85 @@ function updateSlideCounter() {
   }
 }
 
-function createIndicators() {
-  const container = document.getElementById("slideIndicators");
-  if (!container) return;
+// function createIndicators() {
+//   const container = document.getElementById("slideIndicators");
+//   if (!container) return;
+//
+//   container.innerHTML = "";
+//
+//   slides.forEach((_, index) => {
+//     const indicator = document.createElement("div");
+//     indicator.className = "indicator";
+//     if (index === currentSlide) {
+//       indicator.classList.add("active");
+//     }
+//
+//     indicator.addEventListener("click", () => {
+//       if (isTransitioning) return;
+//
+//       const direction = index > currentSlide ? 1 : -1;
+//       currentSlide = index;
+//       transitionDirection = 0;
+//       isTransitioning = false;
+//       draw();
+//       updateSlideCounter();
+//       createIndicators();
+//     });
+//
+//     container.appendChild(indicator);
+//   });
+// }
 
-  container.innerHTML = "";
-
-  slides.forEach((_, index) => {
-    const indicator = document.createElement("div");
-    indicator.className = "indicator";
-    if (index === currentSlide) {
-      indicator.classList.add("active");
-    }
-
-    indicator.addEventListener("click", () => {
-      if (isTransitioning) return;
-
-      const direction = index > currentSlide ? 1 : -1;
-      currentSlide = index;
-      transitionDirection = 0;
-      isTransitioning = false;
-      draw();
-      updateSlideCounter();
-      createIndicators();
-    });
-
-    container.appendChild(indicator);
-  });
-}
-
-function handleKeyDown(e) {
+function handleKeyDown(e, canvas) {
   switch (e.key) {
     case "ArrowRight":
     case " ":
-      nextSlide();
+      nextSlide(canvas);
       e.preventDefault();
       break;
     case "ArrowLeft":
-      prevSlide();
+      prevSlide(canvas);
       e.preventDefault();
       break;
   }
 }
 
 async function init() {
+
+  // キャンバスとコンテキストの取得
+  const canvas = document.getElementById('slideCanvas');
+
   try {
     await imageLoader.loadAllImages(slides);
   } catch (error) {
     console.error("画像の読み込みに失敗しました:", error);
   }
 
+  // 各スライドのコンテンツを初期化
+  slides.forEach(slide => {
+    if (slide.content) {
+      slide.content.forEach(item => {
+        item.visible = false;
+        item.opacity = 0;
+      });
+    }
+  });
+
   // キーボードイベントリスナー登録
-  document.addEventListener("keydown", handleKeyDown);
-
-  // ナビゲーションボタン
-  const nextBtn = document.getElementById("nextBtn");
-  const prevBtn = document.getElementById("prevBtn");
-
-  if (nextBtn) nextBtn.addEventListener("click", nextSlide);
-  if (prevBtn) prevBtn.addEventListener("click", prevSlide);
+  document.addEventListener("keydown", (e) => handleKeyDown(e, canvas));
 
   // 初期設定
-  resizeCanvas();
-  createIndicators();
+  resizeCanvas(canvas);
+  // createIndicators();
   updateSlideCounter();
 
   // リサイズイベント
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize", () => {
+    console.log('----- resize')
+
+
+    resizeCanvas(canvas)
+  });
 }
 
 document.addEventListener("DOMContentLoaded", init);

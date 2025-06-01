@@ -6,6 +6,7 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: rgba(0, 0, 0, 0.7);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -17,7 +18,6 @@ body {
 .container {
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
 }
@@ -53,10 +53,8 @@ h1 {
 canvas {
   background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
   /* background: #121212; */
-  aspect-ratio: 16/9;
   display: block;
-  width: 100%;
-  height: 100%;
+  margin: 0 auto;
 }
 
 .controls {
@@ -88,7 +86,7 @@ button:active {
 }
 
 .slide-indicators {
-  display: flex;
+  display: none;
   justify-content: center;
   gap: 10px;
   margin-top: 20px;
@@ -139,13 +137,6 @@ button:active {
 .feature-card h3 {
   color: #fdbb2d;
   margin-bottom: 10px;
-}
-
-footer {
-  margin-top: 30px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
 }
 
 @media (max-width: 768px) {
