@@ -1,5 +1,6 @@
 
 import type { Slide } from "./types";
+import { ImageLoader } from "./imageLoader";
 
 const baseWidth = 16;
 const baseHeight = 9;
@@ -22,10 +23,16 @@ export const handleResizeWindow = (canvas: HTMLCanvasElement, bgDiv: HTMLDivElem
 
   bgDiv.style.width = `${canvas.clientWidth}px`;
   bgDiv.style.height = `${canvas.clientHeight}px`;
-
-
 }
 
+const _clearCanvas = (canvas: HTMLCanvasElement): void => {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Failed to get canvas context");
+    return;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
 const _parseGradientString = (gradientString: string): { angle: number; colors: string[] } | null => {
   const regex =
     /linear-gradient\((\d+)deg\s*,\s*(#[0-9a-fA-F]+)\s*,\s*(#[0-9a-fA-F]+)\s*,\s*(#[0-9a-fA-F]+)\)/i;
@@ -37,7 +44,7 @@ const _parseGradientString = (gradientString: string): { angle: number; colors: 
   return { angle, colors };
 }
 
-const drawSlideBackground = (ctx: CanvasRenderingContext2D, background: string | undefined, globalAlpha: number): void => {
+const _drawSlideBackground = (ctx: CanvasRenderingContext2D, background: string | undefined, globalAlpha: number): void => {
   const bg = background || `rgba(30, 30, 30, ${globalAlpha})`;
 
   const height = ctx.canvas.height;
@@ -94,7 +101,7 @@ export const drawSlide = (canvas: HTMLCanvasElement, slide: Slide, opacity = 1) 
 
   ctx.globalAlpha = opacity;
 
-  drawSlideBackground(ctx, slide.backgroundColor, ctx.globalAlpha);
+  _drawSlideBackground(ctx, slide.backgroundColor, ctx.globalAlpha);
 
   const titleFontSize = Math.max(1, width * 0.06);
   ctx.font = `normal ${titleFontSize}px  ${fontFamily}`;
@@ -115,6 +122,10 @@ export const drawSlide = (canvas: HTMLCanvasElement, slide: Slide, opacity = 1) 
 
 
 export const animateSlideTransition = (finishTransition: () => void, canvas: HTMLCanvasElement, prevSlide: Slide, nextSlide: Slide, transitionProgress = 0): void => {
+  if (!canvas) return;
+  if (transitionProgress === 0) {
+    _clearCanvas(canvas);
+  }
 
   const currentTransitionProgress = transitionProgress + 0.03;
   drawSlide(canvas, prevSlide, 1 - currentTransitionProgress);
@@ -130,3 +141,122 @@ export const animateSlideTransition = (finishTransition: () => void, canvas: HTM
   });
 
 }
+
+
+function scaleValue(value: string | number, canvasSize: number): number {
+  if (typeof value === "string" && value.includes("%")) {
+    const percent = parseFloat(value) / 100;
+    return canvasSize * percent;
+  }
+  // For number values, treat as absolute pixels relative to baseValue
+  return Number(value);
+}
+
+export const drawContent = (canvas: HTMLCanvasElement, content: Slide['content'], opacity = 1) => {
+  console.log('----- content', content)
+  if (!canvas || !content) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Failed to get canvas context");
+    return;
+  }
+  const height = ctx.canvas.height;
+  const width = ctx.canvas.width;
+  // ctx.clearRect(0, 0, width, height);
+
+  const scaledX = scaleValue(content.x, width);
+  const scaledY = scaleValue(content.y, height);
+
+  ctx.save();
+
+  // コンテンツの透明度を設定
+  ctx.globalAlpha = opacity || 1;
+
+  switch (content.type) {
+    case "text":
+      const fontSize = scaleValue(
+        content.fontSize || 24,
+        Math.min(width, height),
+      );
+
+      ctx.font = `${content.fontWeight || "normal"} ${fontSize}px ${content.fontFamily}`;
+      ctx.fillStyle = content.color || "#ffffff";
+      ctx.textAlign = content.textAlign || "left";
+      ctx.textBaseline = content.textBaseline || "top";
+
+      ctx.fillText(content.text, scaledX, scaledY);
+      break;
+
+      // case "image":
+      // case "svg":
+      //   const img = imageLoader.images[content.src];
+      //   if (img) {
+      //     let targetWidth = scaleValue(content.width, itemAreaWidth, width);
+      //     let targetHeight = scaleValue(content.height, itemAreaHeight, height);
+      //
+      //     targetWidth = Math.min(targetWidth, width * 0.9);
+      //     targetHeight = Math.min(targetHeight, height * 0.7);
+      //
+      //     let drawX = scaledX;
+      //     let drawY = scaledY;
+      //
+      //     switch (content.anchor || "top-left") {
+      //       case "center":
+      //         drawX -= targetWidth / 2;
+      //         drawY -= targetHeight / 2;
+      //         break;
+      //       case "top-right":
+      //         drawX -= targetWidth;
+      //         break;
+      //       case "bottom-left":
+      //         drawY -= targetHeight;
+      //         break;
+      //       case "bottom-right":
+      //         drawX -= targetWidth;
+      //         drawY -= targetHeight;
+      //         break;
+      //       case "center-top":
+      //         drawX -= targetWidth / 2;
+      //         break;
+      //     }
+      //
+      //     ctx.drawImage(img, drawX, drawY, targetWidth, targetHeight);
+      //   } else {
+      //     ctx.fillStyle = "rgba(200, 200, 200, 0.5)";
+      //     ctx.strokeStyle = "rgba(100, 100, 100, 0.7)";
+      //     const targetWidth = scaleValue(content.width, itemAreaWidth, width);
+      //     const targetHeight = scaleValue(content.height, itemAreaHeight, height);
+      //     ctx.fillRect(scaledX, scaledY, targetWidth, targetHeight);
+      //
+      //     ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      //     ctx.font = "16px Arial";
+      //     ctx.textAlign = "center";
+      //     ctx.fillText(
+      //       "Image Loading",
+      //       scaledX + targetWidth / 2,
+      //       scaledY + targetHeight / 2,
+      //     );
+      //   }
+      break;
+  }
+
+  ctx.restore();
+}
+
+
+export const animateContentTransition = (canvas: HTMLCanvasElement, content: Slide['content'], transitionProgress = 0): void => {
+
+  const currentTransitionProgress = transitionProgress + 0.05;
+  drawContent(canvas, content, currentTransitionProgress);
+
+  if (currentTransitionProgress >= 1) {
+    console.log('----- currentTransitionProgress', currentTransitionProgress)
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    animateContentTransition(canvas, content, currentTransitionProgress);
+  });
+
+}
+
