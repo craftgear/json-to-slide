@@ -85,10 +85,10 @@ function App() {
     if (nextIndex >= slides.length) {
       return; // 最後のスライドで止まる
     }
+    setContentIndex(-1);
 
     setIsSlideTransitioning(TransitionDirection.NEXT);
     setCurrentSlideIndex(nextIndex);
-    setContentIndex(-1);
   }, [isSlideTransitioning, currentSlideIndex, contentIndex]);
 
   const handlePrevSlide = useCallback(() => {
@@ -97,6 +97,7 @@ function App() {
       return; // 最初のスライドで止まる
     }
     if (isSlideTransitioning !== TransitionDirection.NONE) return; // スライド遷移中は無視
+    setContentIndex(-1);
 
     setIsSlideTransitioning(TransitionDirection.PREV);
     setCurrentSlideIndex(prevIndex);
