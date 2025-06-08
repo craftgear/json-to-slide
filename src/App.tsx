@@ -2,6 +2,13 @@ import './App.css'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { drawSlide, animateContentTransition, handleResizeWindow, animateSlideTransition } from './slide'
 
+// TODO:
+// - スライド一覧ルートの作成
+// - スライド表示ルートの作成
+// - 画像の表示
+// - フォントサイズの一貫性
+// - タイトルの複数行表示
+
 const slides = [
   {
     title: "簡単なプレゼンテーション",
